@@ -13,7 +13,11 @@ WaterSimulation::WaterSimulation(int gridSize, float size)
       size(std::clamp(size, WaterParams::MIN_SIZE, WaterParams::MAX_SIZE)), 
       currentMode(WaterMode::PHYSICS_SIMULATION),
       waveSpeed(1.0f), damping(0.98f), waveAmplitude(0.15f), waveFrequency(2.0f),
-      totalTime(0.0f) {
+      totalTime(0.0f),
+      rainModeEnabled(false), rainFrequency(8.0f), rainAccumulator(0.0f),
+      rng(std::random_device{}()),
+      distXZ(-this->size / 2.0f, this->size / 2.0f),
+      distStrength(0.5f, 2.0f) {
     
     // 参数校验日志
     if (gridSize != this->gridSize) {
@@ -92,9 +96,9 @@ void WaterSimulation::initMesh() {
     
     glBindVertexArray(VAO);
     
-    // 顶点数据：位置(3) + 法线(3) + 纹理坐标(2) = 8 floats per vertex
+    // 顶点数据：位置(3) + 法线(3) + 纹理坐标(2) + 速度(1) = 9 floats per vertex
     std::vector<float> vertexData;
-    vertexData.reserve(positions.size() * 8);
+    vertexData.reserve(positions.size() * 9);
     
     for (size_t i = 0; i < positions.size(); ++i) {
         vertexData.push_back(positions[i].x);
@@ -105,6 +109,7 @@ void WaterSimulation::initMesh() {
         vertexData.push_back(normals[i].z);
         vertexData.push_back(texCoords[i].x);
         vertexData.push_back(texCoords[i].y);
+        vertexData.push_back(velocities[i]);
     }
     
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -116,18 +121,23 @@ void WaterSimulation::initMesh() {
                  indices.data(), GL_STATIC_DRAW);
     
     // 位置属性
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     
     // 法线属性
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), 
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), 
                          (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
     
     // 纹理坐标属性
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(float),
                          (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
+    
+    // 速度属性
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, 9 * sizeof(float),
+                         (void*)(8 * sizeof(float)));
+    glEnableVertexAttribArray(3);
     
     glBindVertexArray(0);
 }
@@ -137,6 +147,9 @@ void WaterSimulation::update(float deltaTime) {
     
     if (currentMode == WaterMode::PHYSICS_SIMULATION) {
         updatePhysicsSimulation(deltaTime);
+        if (rainModeEnabled) {
+            updateRainDrops(deltaTime);
+        }
     } else {
         updatePresetAnimation(deltaTime);
     }
@@ -269,7 +282,7 @@ void WaterSimulation::updateNormals() {
 
 void WaterSimulation::updateBuffers() {
     std::vector<float> vertexData;
-    vertexData.reserve(positions.size() * 8);
+    vertexData.reserve(positions.size() * 9);
     
     for (size_t i = 0; i < positions.size(); ++i) {
         vertexData.push_back(positions[i].x);
@@ -280,6 +293,7 @@ void WaterSimulation::updateBuffers() {
         vertexData.push_back(normals[i].z);
         vertexData.push_back(texCoords[i].x);
         vertexData.push_back(texCoords[i].y);
+        vertexData.push_back(velocities[i]);
     }
     
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -344,7 +358,47 @@ void WaterSimulation::addDisturbance(float x, float z, float strength) {
 void WaterSimulation::setMode(WaterMode mode) {
     if (currentMode != mode) {
         currentMode = mode;
+        if (mode == WaterMode::PRESET_ANIMATION && rainModeEnabled) {
+            rainModeEnabled = false;
+            LOG_INFO("Rain mode auto-disabled on mode switch");
+        }
         LOG_INFO("Mode changed to: " << (mode == WaterMode::PHYSICS_SIMULATION ? "Physics Simulation" : "Preset Animation"));
         reset();
     }
+}
+
+void WaterSimulation::toggleRainMode() {
+    if (currentMode != WaterMode::PHYSICS_SIMULATION) {
+        LOG_WARN("Rain mode only works in physics simulation mode");
+        return;
+    }
+    rainModeEnabled = !rainModeEnabled;
+    rainAccumulator = 0.0f;
+    LOG_INFO("Rain mode: " << (rainModeEnabled ? "ON" : "OFF"));
+}
+
+void WaterSimulation::setRainMode(bool enabled) {
+    if (enabled && currentMode != WaterMode::PHYSICS_SIMULATION) {
+        LOG_WARN("Rain mode only works in physics simulation mode");
+        return;
+    }
+    rainModeEnabled = enabled;
+    rainAccumulator = 0.0f;
+    LOG_INFO("Rain mode: " << (rainModeEnabled ? "ON" : "OFF"));
+}
+
+void WaterSimulation::updateRainDrops(float deltaTime) {
+    rainAccumulator += deltaTime;
+    float interval = 1.0f / rainFrequency;
+    while (rainAccumulator >= interval) {
+        rainAccumulator -= interval;
+        float x = distXZ(rng);
+        float z = distXZ(rng);
+        float strength = distStrength(rng);
+        addDisturbance(x, z, strength);
+    }
+}
+
+void WaterSimulation::setRainFrequency(float freq) {
+    rainFrequency = std::clamp(freq, 0.1f, 100.0f);
 }
