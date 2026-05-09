@@ -6,6 +6,7 @@
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <random>
 
 // 水面模拟模式
 enum class WaterMode {
@@ -42,6 +43,14 @@ public:
     void addDisturbance(float x, float z, float strength);
     void setMode(WaterMode mode);
     WaterMode getMode() const { return currentMode; }
+
+    // 雨滴模式控制
+    void toggleRainMode(); // 切换雨滴模式的开关状态
+    void setRainMode(bool enabled); // 设置雨滴模式的开关状态
+    bool isRainMode() const { return rainModeEnabled; } // 获取雨滴模式是否开启
+    void updateRainDrops(float deltaTime); // 按频率在随机位置产生雨滴扰动
+    void setRainFrequency(float freq); // 设置雨滴频率（每秒滴数）
+    float getRainFrequency() const { return rainFrequency; } // 获取雨滴频率
 
     // 参数调整（带范围校验）
     void setWaveSpeed(float speed) { 
@@ -95,6 +104,14 @@ private:
     float waveAmplitude;
     float waveFrequency;
     float totalTime;
+
+    // 雨滴模式数据
+    bool rainModeEnabled; // 雨滴模式是否开启
+    float rainFrequency; // 雨滴频率（每秒滴数）
+    float rainAccumulator; // 雨滴时间累加器，用于控制生成频率
+    std::mt19937 rng; // 随机数生成器
+    std::uniform_real_distribution<float> distXZ; // 水面XZ坐标均匀分布
+    std::uniform_real_distribution<float> distStrength; // 雨滴强度随机分布(0.5~2.0)
 
     // OpenGL对象
     unsigned int VAO, VBO, EBO;
