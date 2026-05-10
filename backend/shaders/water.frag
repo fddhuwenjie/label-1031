@@ -4,6 +4,7 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoord;
 in float Height;
+in float Velocity;
 
 out vec4 FragColor;
 
@@ -41,9 +42,17 @@ void main() {
     
     // 添加一些波光效果
     float sparkle = pow(spec, 8.0) * 2.0;
+
+    // 雨滴溅射高光效果
+    float splash = 0.0;
+    float absVel = abs(Velocity);
+    if (absVel > 0.3) {
+        float t = clamp((absVel - 0.3) / 1.7, 0.0, 1.0);
+        splash = t * t;
+    }
     
     // 最终颜色
-    vec3 result = (ambient + diffuse) * waterColor + specular + vec3(sparkle);
+    vec3 result = (ambient + diffuse) * waterColor + specular + vec3(sparkle) + vec3(splash);
     
     // 透明度基于菲涅尔和高度
     float alpha = mix(0.7, 0.95, fresnel);
