@@ -6,6 +6,7 @@
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <random>
 
 // 水面模拟模式
 enum class WaterMode {
@@ -43,6 +44,13 @@ public:
     void setMode(WaterMode mode);
     WaterMode getMode() const { return currentMode; }
 
+    // 雨滴效果
+    void updateRainDrops(float deltaTime);  // 每帧更新雨滴生成
+    void toggleRainMode();  // 切换雨滴模式开关
+    bool isRainModeActive() const { return rainModeActive; }  // 返回雨滴模式状态
+    void setRainFrequency(float freq) { rainFrequency = std::max(0.1f, freq); }  // 设置雨滴频率
+    float getRainFrequency() const { return rainFrequency; }  // 获取雨滴频率
+
     // 参数调整（带范围校验）
     void setWaveSpeed(float speed) { 
         waveSpeed = std::clamp(speed, WaterParams::MIN_WAVE_SPEED, WaterParams::MAX_WAVE_SPEED); 
@@ -67,6 +75,8 @@ public:
 
     unsigned int getVAO() const { return VAO; }
     int getIndexCount() const { return static_cast<int>(indices.size()); }
+
+    const std::vector<float>& getVelocities() const { return velocities; }  // 获取速度数据用于渲染
 
 private:
     void initMesh();
@@ -100,6 +110,14 @@ private:
     unsigned int VAO, VBO, EBO;
 
     WaterMode currentMode;
+
+    // 雨滴效果相关
+    bool rainModeActive;  // 雨滴模式开关状态
+    float rainFrequency;  // 雨滴生成频率（每秒滴数）
+    float rainAccumulator;  // 雨滴生成时间累加器
+    std::mt19937 rng;  // 随机数生成器
+    std::uniform_real_distribution<float> posDist;  // 位置随机分布
+    std::uniform_real_distribution<float> strengthDist;  // 强度随机分布
 };
 
 #endif
