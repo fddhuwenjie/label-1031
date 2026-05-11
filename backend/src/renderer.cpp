@@ -77,6 +77,7 @@ bool Renderer::init() {
     std::cout << "Space/Q: Move up/down" << std::endl;
     std::cout << "1: Physics simulation mode" << std::endl;
     std::cout << "2: Preset animation mode" << std::endl;
+    std::cout << "3: Toggle rain drops (physics mode)" << std::endl;
     std::cout << "Left Click: Add disturbance (physics mode)" << std::endl;
     std::cout << "R: Reset water" << std::endl;
     std::cout << "F: Toggle wireframe" << std::endl;
@@ -227,6 +228,10 @@ void Renderer::keyCallback(GLFWwindow* window, int key, int scancode, int action
         case GLFW_KEY_2:
             g_renderer->waterSim->setMode(WaterMode::PRESET_ANIMATION);
             std::cout << "Mode: Preset Animation (Gerstner Waves)" << std::endl;
+            break;
+        case GLFW_KEY_3:
+            g_renderer->waterSim->toggleRainMode();
+            std::cout << "Rain mode: " << (g_renderer->waterSim->isRainModeEnabled() ? "ON" : "OFF") << std::endl;
             break;
         case GLFW_KEY_R:
             g_renderer->waterSim->reset();

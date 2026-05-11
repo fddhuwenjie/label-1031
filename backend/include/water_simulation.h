@@ -6,6 +6,7 @@
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <random>
 
 // 水面模拟模式
 enum class WaterMode {
@@ -27,6 +28,9 @@ namespace WaterParams {
     constexpr float MAX_AMPLITUDE = 2.0f;
     constexpr float MIN_FREQUENCY = 0.1f;
     constexpr float MAX_FREQUENCY = 10.0f;
+    constexpr float MIN_RAIN_INTENSITY = 0.5f;
+    constexpr float MAX_RAIN_INTENSITY = 2.0f;
+    constexpr float DEFAULT_RAIN_FREQUENCY = 8.0f;
 }
 
 class WaterSimulation {
@@ -68,12 +72,20 @@ public:
     unsigned int getVAO() const { return VAO; }
     int getIndexCount() const { return static_cast<int>(indices.size()); }
 
+    // 雨滴模式控制
+    void toggleRainMode();                    // 切换雨滴模式开关
+    void setRainMode(bool enabled);           // 设置雨滴模式状态
+    bool isRainModeEnabled() const { return rainModeEnabled; }  // 获取雨滴模式状态
+    void setRainFrequency(float freq);        // 设置雨滴生成频率（每秒滴数）
+    float getRainFrequency() const { return rainFrequency; }    // 获取雨滴生成频率
+
 private:
     void initMesh();
     void updatePhysicsSimulation(float deltaTime);
     void updatePresetAnimation(float deltaTime);
     void updateNormals();
     void updateBuffers();
+    void updateRainDrops(float deltaTime);  // 更新雨滴生成逻辑
 
     int gridSize;
     float gridSpacing;
@@ -100,6 +112,14 @@ private:
     unsigned int VAO, VBO, EBO;
 
     WaterMode currentMode;
+
+    // 雨滴模式相关成员
+    bool rainModeEnabled;                     // 雨滴模式开关状态
+    float rainFrequency;                      // 雨滴生成频率（每秒滴数）
+    float rainAccumulator;                    // 雨滴生成时间累加器
+    std::mt19937 randomEngine;                // 随机数生成器
+    std::uniform_real_distribution<float> posDist;  // 位置随机分布
+    std::uniform_real_distribution<float> strengthDist;  // 强度随机分布
 };
 
 #endif
